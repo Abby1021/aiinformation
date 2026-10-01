@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Information Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        glass: {
+                            bg: 'rgba(255, 255, 255, 0.65)',
+                            border: 'rgba(255, 255, 255, 0.8)',
+                            card: 'rgba(255, 255, 255, 0.75)',
+                        }
+                    },
+                    backdropBlur: {
+                        xs: '2px',
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'spin-slow': 'spin 8s linear infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            /* Outdoor Pokemon GO Style Sky to Grass Gradient */
+            background: linear-gradient(180deg, 
+                #7bc6f7 0%, 
+                #a0d8f8 35%, 
+                #cde9f6 55%, 
+                #85d064 75%, 
+                #50b038 100%
+            );
+            background-attachment: fixed;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(16, 185, 129, 0.5);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(16, 185, 129, 0.8);
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 12px 32px 0 rgba(31, 38, 135, 0.12);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        .text-glow {
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .pokemon-glow {
+            filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.15));
+        }
+    </style>
+</head>
+<body class="h-full text-slate-800 flex flex-col p-4 md:p-6 overflow-x-hidden antialiased">
+
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 glass-panel rounded-2xl p-4 md:px-6">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-400 via-emerald-400 to-green-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <i class="fa-solid font-bold fa-leaf text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
+                    資訊看板 <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 font-medium">Nature Dashboard</span>
+                </h1>
+                <p class="text-xs text-slate-600">天氣報告 • 萌寵日常 • 寶可夢圖鑑</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4 text-sm text-slate-700">
+            <div class="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-xl border border-white/90 shadow-sm">
+                <i class="fa-regular fa-clock text-sky-600"></i>
+                <span id="digital-clock" class="font-mono font-bold tracking-wide text-slate-800">00:00:00</span>
+            </div>
+            <button id="refresh-all-btn" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-xl shadow-md transition-all text-xs font-semibold active:scale-95">
+                <i class="fa-solid fa-rotate transition-transform duration-500" id="refresh-icon"></i>
+                <span>全面更新</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-[680px]">
+
+        <!-- Left Column: Weather (1/3) + Dog CEO (2/3) -->
+        <section class="flex flex-col gap-6 h-full">
+
+            <!-- Weather Card (1/3 Height approx) -->
+            <div id="weather-card" class="glass-panel rounded-3xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden min-h-[220px] transition-all duration-300">
+                <!-- Background Accent Glow -->
+                <div class="absolute -top-12 -right-12 w-40 h-40 bg-amber-300/30 rounded-full blur-3xl pointer-events-none"></div>
+
+                <!-- Skeleton Loader -->
+                <div id="weather-skeleton" class="animate-pulse flex flex-col justify-between h-full space-y-4">
+                    <div class="flex justify-between items-start">
+                        <div class="space-y-2">
+                            <div class="h-6 bg-slate-300/60 rounded-md w-32"></div>
+                            <div class="h-4 bg-slate-200/60 rounded-md w-24"></div>
+                        </div>
+                        <div class="w-12 h-12 bg-slate-300/60 rounded-full"></div>
+                    </div>
+                    <div class="flex items-end justify-between mt-auto">
+                        <div class="h-10 bg-slate-300/60 rounded-lg w-28"></div>
+                        <div class="flex gap-3">
+                            <div class="h-12 bg-slate-200/60 rounded-xl w-20"></div>
+                            <div class="h-12 bg-slate-200/60 rounded-xl w-20"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content (Hidden while loading) -->
+                <div id="weather-content" class="hidden flex-col justify-between h-full relative z-10">
+                    <!-- Top Info -->
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-location-dot text-rose-500 text-sm"></i>
+                                <h2 id="weather-location" class="text-lg font-bold text-slate-800 tracking-wide">載入中...</h2>
+                                <span id="geo-status" class="text-[10px] px-2 py-0.5 rounded-md bg-white/80 text-slate-600 border border-slate-200 font-medium">自動定位</span>
+                            </div>
+                            <p id="weather-condition-desc" class="text-xs text-slate-600 mt-1">更新即時資料中</p>
+                        </div>
+                        <div id="weather-icon-container" class="text-4xl md:text-5xl filter drop-shadow-md">
+                            ☀️
+                        </div>
+                    </div>
+
+                    <!-- Bottom Details -->
+                    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mt-4 pt-4 border-t border-slate-200/60">
+                        <div class="flex items-baseline gap-2">
+                            <span id="weather-temp" class="text-4xl md:text-5xl font-extrabold text-slate-800 text-glow">--</span>
+                            <span class="text-xl text-slate-500 font-light">°C</span>
+                        </div>
+
+                        <!-- Weather Parameters Grid -->
+                        <div class="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+                            <div class="bg-white/70 border border-white/80 rounded-xl px-2.5 py-1.5 flex flex-col items-center shadow-sm">
+                                <span class="text-[10px] text-slate-500 flex items-center gap-1 font-medium">
+                                    <i class="fa-solid fa-temperature-half text-amber-500"></i>體感
+                                </span>
+                                <span id="weather-apparent" class="text-xs font-bold text-slate-800 mt-0.5">--°C</span>
+                            </div>
+                            <div class="bg-white/70 border border-white/80 rounded-xl px-2.5 py-1.5 flex flex-col items-center shadow-sm">
+                                <span class="text-[10px] text-slate-500 flex items-center gap-1 font-medium">
+                                    <i class="fa-solid fa-droplet text-sky-500"></i>濕度
+                                </span>
+                                <span id="weather-humidity" class="text-xs font-bold text-slate-800 mt-0.5">--%</span>
+                            </div>
+                            <div class="bg-white/70 border border-white/80 rounded-xl px-2.5 py-1.5 flex flex-col items-center shadow-sm">
+                                <span class="text-[10px] text-slate-500 flex items-center gap-1 font-medium">
+                                    <i class="fa-solid fa-wind text-teal-600"></i>風速
+                                </span>
+                                <span id="weather-wind" class="text-xs font-bold text-slate-800 mt-0.5">-- km/h</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weather Error Fallback -->
+                <div id="weather-error" class="hidden flex-col items-center justify-center h-full text-center p-4">
+                    <i class="fa-solid fa-cloud-bolt text-rose-500 text-3xl mb-2"></i>
+                    <p class="text-sm font-medium text-slate-700">無法取得天氣資料</p>
+                    <button onclick="fetchWeather()" class="mt-3 text-xs bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg text-white font-medium shadow-sm">重試</button>
+                </div>
+            </div>
+
+            <!-- Dog Photo Card (2/3 Height approx) -->
+            <div id="dog-card" class="glass-panel rounded-3xl p-5 md:p-6 flex flex-col justify-between flex-1 relative overflow-hidden min-h-[380px] group">
+                <!-- Header Control -->
+                <div class="flex justify-between items-center mb-3 z-10">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-dog text-amber-600 text-lg"></i>
+                        <h2 class="text-base font-bold text-slate-800">狗狗照片畫廊</h2>
+                        <span id="dog-breed-badge" class="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 capitalize truncate max-w-[140px] font-medium">Random</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <!-- Auto Play Toggle Button -->
+                        <button id="dog-autoplay-toggle" class="px-2.5 py-1 rounded-xl bg-white/80 hover:bg-white border border-slate-200 text-xs text-slate-700 font-medium flex items-center gap-1.5 transition-all shadow-sm">
+                            <i class="fa-solid fa-circle-play text-emerald-600" id="dog-play-icon"></i>
+                            <span id="dog-play-text">30s 輪播</span>
+                        </button>
+
+                        <button id="next-dog-btn" class="bg-amber-500 hover:bg-amber-400 text-white font-semibold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all active:scale-95">
+                            <span>下一張狗勾</span>
+                            <i class="fa-solid fa-paw"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Bar for Countdown -->
+                <div class="w-full bg-slate-200/80 h-1.5 rounded-full mb-3 overflow-hidden z-10 border border-white">
+                    <div id="dog-progress-bar" class="bg-gradient-to-r from-amber-400 to-orange-500 h-full w-0 transition-all duration-100 ease-linear"></div>
+                </div>
+
+                <!-- Photo Container -->
+                <div class="relative flex-1 rounded-2xl overflow-hidden bg-slate-100/60 border border-white flex items-center justify-center min-h-[260px] shadow-inner">
+                    
+                    <!-- Skeleton Loader -->
+                    <div id="dog-skeleton" class="absolute inset-0 animate-pulse bg-slate-200/70 flex flex-col items-center justify-center gap-2">
+                        <i class="fa-solid fa-paw text-slate-400 text-4xl animate-bounce"></i>
+                        <span class="text-xs text-slate-500 font-medium">狗狗正在尋找中...</span>
+                    </div>
+
+                    <!-- Image Element -->
+                    <img id="dog-image" src="" alt="Cute Dog" class="w-full h-full object-cover object-center opacity-0 transition-opacity duration-500 rounded-2xl" onload="this.classList.remove('opacity-0'); document.getElementById('dog-skeleton').classList.add('hidden');" onerror="handleDogError()">
+
+                    <!-- Image Overlay Info -->
+                    <div id="dog-info-overlay" class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-900/80 via-slate-900/30 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex justify-between items-end">
+                        <div>
+                            <p class="text-xs text-amber-300 font-medium">Woof!</p>
+                            <h3 id="dog-breed-name" class="text-sm font-bold text-white capitalize">Cute Doggo</h3>
+                        </div>
+                        <a id="dog-download-link" href="#" target="_blank" rel="noopener" class="text-xs bg-white/80 hover:bg-white text-slate-800 p-2 rounded-lg border border-white shadow-md transition-all" title="開啓原圖">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Column: Pokemon Card (Full Height) -->
+        <section class="h-full">
+            <div id="pokemon-card" class="glass-panel rounded-3xl p-5 md:p-6 flex flex-col justify-between h-full relative overflow-hidden min-h-[600px]">
+                
+                <!-- Background Glow Accent based on Pokemon -->
+                <div id="pokemon-bg-glow" class="absolute -bottom-20 -right-20 w-80 h-80 bg-emerald-300/30 rounded-full blur-3xl pointer-events-none transition-all duration-700"></div>
+
+                <!-- Top Controls & Search Bar -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4 z-10">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></div>
+                        <h2 class="text-base font-bold text-slate-800 tracking-wide flex items-center gap-2">
+                            寶可夢圖鑑 <span class="text-xs text-slate-500 font-normal">PokéAPI</span>
+                        </h2>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <div class="relative flex-1 sm:w-48">
+                            <input type="text" id="pokemon-search-input" placeholder="名稱或編號 (如 pikachu)" class="w-full bg-white/80 border border-slate-300 focus:border-emerald-500 rounded-xl px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all pr-8 shadow-sm">
+                            <button id="pokemon-search-btn" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                        </div>
+                        <button id="random-pokemon-btn" class="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-white font-semibold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all active:scale-95 shrink-0">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span>隨機抽卡</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Pokemon Main View -->
+                <div id="pokemon-display" class="flex-1 flex flex-col justify-between z-10">
+
+                    <!-- Skeleton Loader -->
+                    <div id="pokemon-skeleton" class="animate-pulse flex flex-col h-full justify-between space-y-6 py-4">
+                        <div class="flex justify-between items-center">
+                            <div class="h-6 bg-slate-300/60 rounded-md w-32"></div>
+                            <div class="h-6 bg-slate-300/60 rounded-md w-16"></div>
+                        </div>
+                        <div class="w-48 h-48 bg-slate-200/70 rounded-full mx-auto my-auto"></div>
+                        <div class="space-y-3">
+                            <div class="h-4 bg-slate-300/60 rounded w-full"></div>
+                            <div class="h-4 bg-slate-300/60 rounded w-full"></div>
+                            <div class="h-4 bg-slate-300/60 rounded w-3/4"></div>
+                        </div>
+                    </div>
+
+                    <!-- Main Pokemon Details (Hidden while loading) -->
+                    <div id="pokemon-content" class="hidden flex-col justify-between h-full">
+
+                        <!-- Pokemon Name & ID Header -->
+                        <div class="flex justify-between items-start border-b border-slate-200/80 pb-3">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 id="pokemon-name" class="text-2xl md:text-3xl font-extrabold text-slate-800 capitalize tracking-tight">Pikachu</h3>
+                                    <span id="pokemon-id" class="text-sm font-mono text-slate-500 font-bold">#025</span>
+                                </div>
+                                <p id="pokemon-japanese-name" class="text-xs text-slate-500 mt-0.5 font-semibold">皮卡丘</p>
+                            </div>
+
+                            <!-- Type Badges -->
+                            <div id="pokemon-types" class="flex flex-wrap gap-1.5 justify-end">
+                                <!-- Types will be injected dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Pokemon Artwork Display -->
+                        <div class="relative my-4 flex items-center justify-center py-4 group">
+                            <!-- Circular Backdrop Aura -->
+                            <div id="pokemon-aura" class="absolute w-44 h-44 rounded-full bg-yellow-300/40 blur-2xl transition-all duration-500"></div>
+
+                            <img id="pokemon-image" src="" alt="Pokemon Artwork" class="w-48 h-48 md:w-56 md:h-56 object-contain relative z-10 transition-all duration-500 hover:scale-105 pokemon-glow">
+                        </div>
+
+                        <!-- Height, Weight & Abilities Banner -->
+                        <div class="grid grid-cols-3 gap-2 bg-white/70 border border-white/90 rounded-2xl p-3 text-center my-2 shadow-sm">
+                            <div>
+                                <span class="text-[10px] text-slate-500 font-medium block">身高</span>
+                                <span id="pokemon-height" class="text-xs font-bold text-slate-800">0.4 m</span>
+                            </div>
+                            <div class="border-x border-slate-200">
+                                <span class="text-[10px] text-slate-500 font-medium block">體重</span>
+                                <span id="pokemon-weight" class="text-xs font-bold text-slate-800">6.0 kg</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-500 font-medium block">主要特性</span>
+                                <span id="pokemon-ability" class="text-xs font-bold text-emerald-700 capitalize truncate block px-1">Static</span>
+                            </div>
+                        </div>
+
+                        <!-- Base Stats Section -->
+                        <div class="mt-2">
+                            <h4 class="text-xs font-bold text-slate-700 mb-2.5 flex items-center gap-1.5">
+                                <i class="fa-solid fa-chart-simple text-emerald-600"></i>
+                                <span>基礎能力值 (Base Stats)</span>
+                            </h4>
+
+                            <div class="space-y-2 text-xs">
+                                <!-- HP -->
+                                <div class="flex items-center gap-2">
+                                    <span class="w-12 text-slate-600 font-semibold text-[11px]">HP</span>
+                                    <span id="stat-hp-val" class="w-8 text-right font-mono font-bold text-slate-800">35</span>
+                                    <div class="flex-1 bg-slate-200/80 h-2 rounded-full overflow-hidden border border-white">
+                                        <div id="stat-hp-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-700" style="width: 20%"></div>
+                                    </div>
+                                </div>
+                                <!-- Attack -->
+                                <div class="flex items-center gap-2">
+                                    <span class="w-12 text-slate-600 font-semibold text-[11px]">攻擊</span>
+                                    <span id="stat-atk-val" class="w-8 text-right font-mono font-bold text-slate-800">55</span>
+                                    <div class="flex-1 bg-slate-200/80 h-2 rounded-full overflow-hidden border border-white">
+                                        <div id="stat-atk-bar" class="bg-rose-500 h-full rounded-full transition-all duration-700" style="width: 30%"></div>
+                                    </div>
+                                </div>
+                                <!-- Defense -->
+                                <div class="flex items-center gap-2">
+                                    <span class="w-12 text-slate-600 font-semibold text-[11px]">防禦</span>
+                                    <span id="stat-def-val" class="w-8 text-right font-mono font-bold text-slate-800">40</span>
+                                    <div class="flex-1 bg-slate-200/80 h-2 rounded-full overflow-hidden border border-white">
+                                        <div id="stat-def-bar" class="bg-amber-500 h-full rounded-full transition-all duration-700" style="width: 25%"></div>
+                                    </div>
+                                </div>
+                                <!-- Sp. Atk -->
+                                <div class="flex items-center gap-2">
+                                    <span class="w-12 text-slate-600 font-semibold text-[11px]">特攻</span>
+                                    <span id="stat-spatk-val" class="w-8 text-right font-mono font-bold text-slate-800">50</span>
+                                    <div class="flex-1 bg-slate-200/80 h-2 rounded-full overflow-hidden border border-white">
+                                        <div id="stat-spatk-bar" class="bg-sky-500 h-full rounded-full transition-all duration-700" style="width: 28%"></div>
+                                    </div>
+                                </div>
+                                <!-- Speed -->
+                                <div class="flex items-center gap-2">
+                                    <span class="w-12 text-slate-600 font-semibold text-[11px]">速度</span>
+                                    <span id="stat-spd-val" class="w-8 text-right font-mono font-bold text-slate-800">90</span>
+                                    <div class="flex-1 bg-slate-200/80 h-2 rounded-full overflow-hidden border border-white">
+                                        <div id="stat-spd-bar" class="bg-pink-500 h-full rounded-full transition-all duration-700" style="width: 50%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Error View -->
+                    <div id="pokemon-error" class="hidden flex-col items-center justify-center h-full text-center p-6 my-auto">
+                        <i class="fa-solid fa-ghost text-slate-400 text-5xl mb-3 animate-bounce"></i>
+                        <h3 class="text-base font-bold text-slate-700">找不到寶可夢！</h3>
+                        <p class="text-xs text-slate-500 mt-1 max-w-xs">請檢查名稱或編號是否正確 (例如輸入 25 或 bulbasaur)</p>
+                        <button onclick="fetchPokemon(25)" class="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-md transition-all">返回皮卡丘</button>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="mt-6 text-center text-xs text-slate-700 font-medium py-2 drop-shadow-sm">
+        <p>Smart Ambient Dashboard • Nature Edition • 資料來源: Open-Meteo, Dog CEO, PokéAPI</p>
+    </footer>
+
+    <script>
+        // --- CONSTANTS & CONFIGS ---
+        const DEFAULT_LOCATION = { name: "台北市 (預設)", lat: 25.0375, lon: 121.5637 };
+        const DOG_AUTOPLAY_INTERVAL = 30; // Seconds
+        const TOTAL_POKEMON_COUNT = 1010; // Max supported ID for official artwork
+
+        // Type Color Mapping for Light Glass Theme
+        const POKEMON_TYPE_COLORS = {
+            normal: { bg: 'bg-slate-200/80', text: 'text-slate-800', border: 'border-slate-300', glow: 'rgba(148, 163, 184, 0.35)' },
+            fire: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300', glow: 'rgba(249, 115, 22, 0.35)' },
+            water: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', glow: 'rgba(59, 130, 246, 0.35)' },
+            electric: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300', glow: 'rgba(234, 179, 8, 0.4)' },
+            grass: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300', glow: 'rgba(16, 185, 129, 0.35)' },
+            ice: { bg: 'bg-cyan-100', text: 'text-cyan-800', border: 'border-cyan-300', glow: 'rgba(6, 182, 212, 0.35)' },
+            fighting: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300', glow: 'rgba(220, 38, 38, 0.35)' },
+            poison: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', glow: 'rgba(168, 85, 247, 0.35)' },
+            ground: { bg: 'bg-amber-100', text: 'text-amber-900', border: 'border-amber-300', glow: 'rgba(180, 83, 9, 0.35)' },
+            flying: { bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-300', glow: 'rgba(129, 140, 248, 0.35)' },
+            psychic: { bg: 'bg-pink-100', text: 'text-pink-800', border: 'border-pink-300', glow: 'rgba(236, 72, 153, 0.35)' },
+            bug: { bg: 'bg-lime-100', text: 'text-lime-800', border: 'border-lime-300', glow: 'rgba(132, 204, 22, 0.35)' },
+            rock: { bg: 'bg-stone-200', text: 'text-stone-800', border: 'border-stone-300', glow: 'rgba(120, 113, 108, 0.35)' },
+            ghost: { bg: 'bg-violet-100', text: 'text-violet-800', border: 'border-violet-300', glow: 'rgba(124, 58, 237, 0.35)' },
+            dragon: { bg: 'bg-indigo-200', text: 'text-indigo-900', border: 'border-indigo-300', glow: 'rgba(79, 70, 229, 0.35)' },
+            dark: { bg: 'bg-slate-300', text: 'text-slate-900', border: 'border-slate-400', glow: 'rgba(30, 41, 59, 0.35)' },
+            steel: { bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-300', glow: 'rgba(20, 184, 166, 0.35)' },
+            fairy: { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-300', glow: 'rgba(251, 113, 133, 0.35)' }
+        };
+
+        // WMO Weather Code Translator
+        function translateWMO(code) {
+            const wmoMap = {
+                0: { desc: "晴朗無雲", icon: "☀️" },
+                1: { desc: "大致晴朗", icon: "🌤️" },
+                2: { desc: "多雲", icon: "⛅" },
+                3: { desc: "陰天", icon: "☁️" },
+                45: { desc: "有霧", icon: "🌫️" },
+                48: { desc: "霧淞", icon: "🌫️" },
+                51: { desc: "輕微細雨", icon: "🌦" },
+                53: { desc: "細雨", icon: "🌧️" },
+                55: { desc: "濃密細雨", icon: "🌧️" },
+                61: { desc: "輕微陣雨", icon: "🌦️" },
+                63: { desc: "適度陣雨", icon: "🌧️" },
+                65: { desc: "豪雨", icon: "⛈️" },
+                71: { desc: "輕微降雪", icon: "🌨️" },
+                73: { desc: "降雪", icon: "❄️" },
+                75: { desc: "強降雪", icon: "❄️" },
+                80: { desc: "輕微陣雨", icon: "🌦️" },
+                81: { desc: "陣雨", icon: "🌧️" },
+                82: { desc: "劇烈陣雨", icon: "⛈️" },
+                95: { desc: "雷雨", icon: "🌩️" },
+                96: { desc: "雷雨伴隨冰雹", icon: "⛈️️" },
+                99: { desc: "強烈雷雨伴冰雹", icon: "⛈️️" }
+            };
+            return wmoMap[code] || { desc: "未知天氣", icon: "🌡️" };
+        }
+
+        // --- STATE VARIABLES ---
+        let dogAutoPlayTimer = null;
+        let dogCountdownProgress = 0;
+        let isDogAutoplayActive = true;
+
+        // --- INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            startClock();
+            fetchWeather();
+            fetchDogImage();
+            fetchPokemon(getRandomInt(1, 151)); // Default load Gen 1 Pokemon
+
+            setupEventListeners();
+            startDogAutoplay();
+        });
+
+        // Digital Clock Function
+        function startClock() {
+            const clockEl = document.getElementById('digital-clock');
+            function updateTime() {
+                const now = new Date();
+                clockEl.textContent = now.toLocaleTimeString('zh-TW', { hour12: false });
+            }
+            updateTime();
+            setInterval(updateTime, 1000);
+        }
+
+        // Setup Event Listeners
+        function setupEventListeners() {
+            // Refresh All Button
+            document.getElementById('refresh-all-btn').addEventListener('click', () => {
+                const icon = document.getElementById('refresh-icon');
+                icon.classList.add('rotate-180');
+                setTimeout(() => icon.classList.remove('rotate-180'), 500);
+
+                fetchWeather();
+                fetchDogImage();
+                fetchPokemon(getRandomInt(1, TOTAL_POKEMON_COUNT));
+            });
+
+            // Dog Controls
+            document.getElementById('next-dog-btn').addEventListener('click', () => {
+                resetDogAutoplayProgress();
+                fetchDogImage();
+            });
+
+            document.getElementById('dog-autoplay-toggle').addEventListener('click', toggleDogAutoplay);
+
+            // Pokemon Controls
+            document.getElementById('random-pokemon-btn').addEventListener('click', () => {
+                fetchPokemon(getRandomInt(1, TOTAL_POKEMON_COUNT));
+            });
+
+            const searchInput = document.getElementById('pokemon-search-input');
+            const searchBtn = document.getElementById('pokemon-search-btn');
+
+            const handleSearch = () => {
+                const query = searchInput.value.trim().toLowerCase();
+                if (query) fetchPokemon(query);
+            };
+
+            searchBtn.addEventListener('click', handleSearch);
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleSearch();
+            });
+        }
+
+        // Helper: Random Integer Generator
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // --- WEATHER MODULE ---
+        async function fetchWeather() {
+            const skeleton = document.getElementById('weather-skeleton');
+            const content = document.getElementById('weather-content');
+            const errorView = document.getElementById('weather-error');
+
+            skeleton.classList.remove('hidden');
+            content.classList.add('hidden');
+            errorView.classList.add('hidden');
+
+            // Try GeoLocation
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        document.getElementById('geo-status').textContent = "本地定位";
+                        await loadWeatherData(lat, lon, "目前位置");
+                    },
+                    async (err) => {
+                        console.warn("GeoLocation declined/failed, falling back to Taipei:", err.message);
+                        document.getElementById('geo-status').textContent = "預設台北";
+                        await loadWeatherData(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon, DEFAULT_LOCATION.name);
+                    },
+                    { timeout: 7000 }
+                );
+            } else {
+                document.getElementById('geo-status').textContent = "預設台北";
+                await loadWeatherData(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon, DEFAULT_LOCATION.name);
+            }
+        }
+
+        async function loadWeatherData(lat, lon, locationName) {
+            const skeleton = document.getElementById('weather-skeleton');
+            const content = document.getElementById('weather-content');
+            const errorView = document.getElementById('weather-error');
+
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Weather API error");
+                
+                const data = await res.json();
+                const current = data.current;
+                const weatherMeta = translateWMO(current.weather_code);
+
+                document.getElementById('weather-location').textContent = locationName;
+                document.getElementById('weather-condition-desc').textContent = weatherMeta.desc;
+                document.getElementById('weather-icon-container').textContent = weatherMeta.icon;
+                document.getElementById('weather-temp').textContent = Math.round(current.temperature_2m);
+                document.getElementById('weather-apparent').textContent = `${Math.round(current.apparent_temperature)}°C`;
+                document.getElementById('weather-humidity').textContent = `${current.relative_humidity_2m}%`;
+                document.getElementById('weather-wind').textContent = `${Math.round(current.wind_speed_10m)} km/h`;
+
+                skeleton.classList.add('hidden');
+                content.classList.remove('hidden');
+                content.classList.add('flex');
+            } catch (err) {
+                console.error("Failed to fetch weather:", err);
+                skeleton.classList.add('hidden');
+                errorView.classList.remove('hidden');
+                errorView.classList.add('flex');
+            }
+        }
+
+        // --- DOG API MODULE ---
+        async function fetchDogImage() {
+            const skeleton = document.getElementById('dog-skeleton');
+            const img = document.getElementById('dog-image');
+            const breedBadge = document.getElementById('dog-breed-badge');
+            const breedName = document.getElementById('dog-breed-name');
+            const downloadLink = document.getElementById('dog-download-link');
+
+            skeleton.classList.remove('hidden');
+            img.classList.add('opacity-0');
+
+            try {
+                const res = await fetch('https://dog.ceo/api/breeds/image/random');
+                if (!res.ok) throw new Error("Dog API response error");
+                
+                const data = await res.json();
+                const imageUrl = data.message;
+
+                // Extract Breed Name from URL
+                const pathParts = imageUrl.split('/');
+                const breedIndex = pathParts.indexOf('breeds');
+                let breed = "Happy Doggo";
+                
+                if (breedIndex !== -1 && pathParts[breedIndex + 1]) {
+                    breed = pathParts[breedIndex + 1].split('-').reverse().join(' ');
+                }
+
+                img.src = imageUrl;
+                downloadLink.href = imageUrl;
+                breedBadge.textContent = breed;
+                breedName.textContent = breed;
+
+            } catch (err) {
+                console.error("Failed to load dog image:", err);
+                handleDogError();
+            }
+        }
+
+        function handleDogError() {
+            const skeleton = document.getElementById('dog-skeleton');
+            const img = document.getElementById('dog-image');
+            const breedBadge = document.getElementById('dog-breed-badge');
+            
+            skeleton.classList.add('hidden');
+            img.src = 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80';
+            img.classList.remove('opacity-0');
+            breedBadge.textContent = "Cute Dog (Fallback)";
+        }
+
+        // Dog Auto Play Mechanism
+        function startDogAutoplay() {
+            if (dogAutoPlayTimer) clearInterval(dogAutoPlayTimer);
+            dogCountdownProgress = 0;
+
+            dogAutoPlayTimer = setInterval(() => {
+                if (!isDogAutoplayActive) return;
+
+                dogCountdownProgress += 1;
+                const percentage = (dogCountdownProgress / (DOG_AUTOPLAY_INTERVAL * 10)) * 100;
+                document.getElementById('dog-progress-bar').style.width = `${percentage}%`;
+
+                if (dogCountdownProgress >= DOG_AUTOPLAY_INTERVAL * 10) {
+                    dogCountdownProgress = 0;
+                    fetchDogImage();
+                }
+            }, 100);
+        }
+
+        function resetDogAutoplayProgress() {
+            dogCountdownProgress = 0;
+            document.getElementById('dog-progress-bar').style.width = '0%';
+        }
+
+        function toggleDogAutoplay() {
+            isDogAutoplayActive = !isDogAutoplayActive;
+            const icon = document.getElementById('dog-play-icon');
+            const text = document.getElementById('dog-play-text');
+
+            if (isDogAutoplayActive) {
+                icon.className = "fa-solid fa-circle-play text-emerald-600";
+                text.textContent = "30s 輪播";
+            } else {
+                icon.className = "fa-solid fa-circle-pause text-amber-500";
+                text.textContent = "已暫停";
+                document.getElementById('dog-progress-bar').style.width = '0%';
+            }
+        }
+
+        // --- POKEMON MODULE ---
+        async function fetchPokemon(query) {
+            const skeleton = document.getElementById('pokemon-skeleton');
+            const content = document.getElementById('pokemon-content');
+            const errorView = document.getElementById('pokemon-error');
+
+            skeleton.classList.remove('hidden');
+            content.classList.add('hidden');
+            errorView.classList.add('hidden');
+
+            try {
+                const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${query}`);
+                if (!res.ok) throw new Error("Pokemon not found");
+
+                const data = await res.json();
+                
+                let jpName = "";
+                try {
+                    const speciesRes = await fetch(data.species.url);
+                    if (speciesRes.ok) {
+                        const speciesData = await speciesRes.json();
+                        const jpEntry = speciesData.names.find(n => n.language.name === "ja-Hrkt" || n.language.name === "ja");
+                        const zhEntry = speciesData.names.find(n => n.language.name === "zh-Hant" || n.language.name === "zh-Hans");
+                        jpName = zhEntry ? zhEntry.name : (jpEntry ? jpEntry.name : "");
+                    }
+                } catch (e) {
+                    console.warn("Could not fetch species localized name:", e);
+                }
+
+                renderPokemonData(data, jpName);
+
+                skeleton.classList.add('hidden');
+                content.classList.remove('hidden');
+                content.classList.add('flex');
+            } catch (err) {
+                console.error("PokéAPI Error:", err);
+                skeleton.classList.add('hidden');
+                errorView.classList.remove('hidden');
+                errorView.classList.add('flex');
+            }
+        }
+
+        function renderPokemonData(data, localizedName) {
+            // Name & ID
+            document.getElementById('pokemon-name').textContent = data.name.replace('-', ' ');
+            document.getElementById('pokemon-id').textContent = `#${String(data.id).padStart(3, '0')}`;
+            document.getElementById('pokemon-japanese-name').textContent = localizedName || "寶可夢";
+
+            // Types Render
+            const typesContainer = document.getElementById('pokemon-types');
+            typesContainer.innerHTML = '';
+            
+            const primaryType = data.types[0]?.type?.name || 'normal';
+            const primaryTypeTheme = POKEMON_TYPE_COLORS[primaryType] || POKEMON_TYPE_COLORS.normal;
+
+            // Set Glow Accent Color according to primary type
+            document.getElementById('pokemon-bg-glow').style.backgroundColor = primaryTypeTheme.glow;
+            document.getElementById('pokemon-aura').style.backgroundColor = primaryTypeTheme.glow;
+
+            data.types.forEach(t => {
+                const tName = t.type.name;
+                const theme = POKEMON_TYPE_COLORS[tName] || POKEMON_TYPE_COLORS.normal;
+                const badge = document.createElement('span');
+                badge.className = `text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase border ${theme.bg} ${theme.text} ${theme.border} shadow-sm`;
+                badge.textContent = tName;
+                typesContainer.appendChild(badge);
+            });
+
+            // Official Artwork Image
+            const imgEl = document.getElementById('pokemon-image');
+            const artworkUrl = data.sprites.other['official-artwork'].front_default || data.sprites.front_default;
+            imgEl.src = artworkUrl;
+
+            // Height, Weight, Ability
+            document.getElementById('pokemon-height').textContent = `${(data.height / 10).toFixed(1)} m`;
+            document.getElementById('pokemon-weight').textContent = `${(data.weight / 10).toFixed(1)} kg`;
+            
+            const mainAbility = data.abilities.find(a => !a.is_hidden)?.ability?.name || data.abilities[0]?.ability?.name || "None";
+            document.getElementById('pokemon-ability').textContent = mainAbility.replace('-', ' ');
+
+            // Base Stats Bar updates
+            const getStat = (name) => data.stats.find(s => s.stat.name === name)?.base_stat || 0;
+
+            const hp = getStat('hp');
+            const atk = getStat('attack');
+            const def = getStat('defense');
+            const spatk = getStat('special-attack');
+            const spd = getStat('speed');
+
+            updateStatRow('hp', hp);
+            updateStatRow('atk', atk);
+            updateStatRow('def', def);
+            updateStatRow('spatk', spatk);
+            updateStatRow('spd', spd);
+        }
+
+        function updateStatRow(statKey, val) {
+            document.getElementById(`stat-${statKey}-val`).textContent = val;
+            const percentage = Math.min(100, Math.round((val / 160) * 100));
+            document.getElementById(`stat-${statKey}-bar`).style.width = `${percentage}%`;
+        }
+    </script>
+</body>
+</html>
